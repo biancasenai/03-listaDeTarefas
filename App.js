@@ -10,70 +10,185 @@ import {
   View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function App() {
-  const [tasks, setTasks] = useState([]); //estado para armazenar a lista de tarefas
-  const [newTask, setNewTask] = useState(""); //estado para o texto da nova tarefa
+  // serve para alterar o tema ao clicar
+  const [dark, setDark] = useState(false);
 
-  const addTask = () => {
-    if (newTask.trim().length > 0) {
-      // corrigido: trim() antes de length
-      //garante que a tarefa não seja vazia
-      setTasks((prevTasks) => [
-        ...prevTasks,
-        { id: Date.now().toString(), text: newTask, completed: false }, //cria uma nova tarefa com id unico
+  // estado para armazenar as tarefas
+  const [task, setTask] = useState([]);
+
+  // estado para o texto da tarefa
+  const [newtask, setNewtask] = useState("");
+
+  useEffect(() => {
+    const loadTasks = async () => {
+      try {
+        const savedTasks = await AsyncStorage.getItem("tasks");
+        savedTasks && setTask(JSON.parse(savedTasks));
+      } catch (error) {
+        console.error("Erro ao carregar tarefas:", error);
+      }
+    };
+    loadTasks();
+  }, []);
+
+  useEffect(() => {
+    const saveTasks = async () => {
+      try {
+        await AsyncStorage.setItem("tasks", JSON.stringify(task));
+      } catch (error) {
+        console.error("Erro ao salvar tarefas", error);
+      }
+    };
+    saveTasks();
+  }, [task]);
+
+  const addtask = () => {
+    if (newtask.trim().length > 0) {
+      setTask((prevtask) => [
+        ...prevtask,
+        {
+          id: Date.now().toString(),
+          text: newtask.trim(),
+          completed: false,
+        },
       ]);
-      setNewTask(""); //limpa o input
-      Keyboard.dismiss(); //fecha o teclado
+      setNewtask("");
+      Keyboard.dismiss();
     } else {
-      Alert.alert("Erro", "A tarefa não pode ser vazia.");
+      Alert.alert("Atenção", "Por favor informe uma tarefa");
     }
   };
 
+  const toggleCompleteted = (id) => {
+    setTask((prevTask) =>
+      prevTask.map((task) =>
+        task.id === id ? { ...task, completed: !task.completed } : task
+      )
+    );
+  };
+
+  const deleteTask = (id) => {
+    Alert.alert(
+      "Confirmar exclusão",
+      "Tem certeza que deseja excluir essa tarefa?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: () =>
+            setTask((prev) => prev.filter((task) => task.id !== id)),
+        },
+      ]
+    );
+  };
+
+  const renderList = ({ item }) => (
+    <View
+      style={[
+        styles.taskItem,
+        { backgroundColor: dark ? "#000" : "#fff" }, //cores dos determinados fundos 
+      ]}
+      key={item.id}
+    >
+      <TouchableOpacity
+        style={styles.taskTextContainer}
+        onPress={() => toggleCompleteted(item.id)}
+      >
+        <Text
+          style={[
+            styles.taskText,
+            { color: dark ? "#fff" : "#333" },//se o tema estiver branco o texto é preto e assim ao contrario tbm
+            item.completed && styles.completedTaskItem,
+          ]}
+        >
+          {item.text}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => deleteTask(item.id)}>
+        <Text style={[styles.taskText, { color: dark ? "#fff" : "#333" }]}>
+          🗑️
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
-    <View style={styles.container}>
-      <View style={styles.topBar}>
-        <Text style={styles.toBarTitle}>Minhas Tarefas</Text>
-        <TouchableOpacity>
-          <Text>🌛</Text>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: dark ? "#121212" : "#e0f7fa" }, 
+      ]}
+    >
+      <View
+        style={[
+          styles.topBar,
+          { backgroundColor: dark ? "#1e1e1e" : "#fff" },
+        ]}
+      >
+        <Text
+          style={[
+            styles.topBarTittle,
+            { color: dark ? "#fff" : "#051650" }, //texto do cabeçalho
+          ]}
+        >
+          Minhas Tarefas
+        </Text>
+        <TouchableOpacity onPress={() => setDark(!dark)}>
+          
+          {/* emojis */}
+          <Text>{dark ? "☀️" : "🌛"}</Text> 
         </TouchableOpacity>
       </View>
 
-      {/* Lista de Tarefas do usuário */}
-      <View style={styles.card}>
+      {/* Campo de adicionar tarefa */}
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: dark ? "#1e1e1e" : "#fff" }, //container maior do add tarefa
+        ]}
+      >
         <TextInput
-          style={styles.input}
+          style={[
+            styles.input,
+            {
+              backgroundColor: dark ? "#2c2c2c" : "#fcfcfc", // cor caixa do texto
+              color: dark ? "#fff" : "#333",
+            },
+          ]}
           placeholder="Adicionar nova tarefa..."
-          value={newTask}
-          onChangeText={setNewTask}
-          onSubmitEditing={addTask} //adiciona a tarefa ao pressionar enter no teclado
+          placeholderTextColor={dark ? "#aaa" : "#999"}  //cor texto
+          value={newtask}
+          onChangeText={setNewtask}
+          onSubmitEditing={addtask}
         />
-        <TouchableOpacity style={styles.addButton} onPress={addTask}>
+        <TouchableOpacity style={styles.addButton} onPress={addtask}>
           <Text style={styles.buttonText}>Adicionar</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Lista de tarefas */}
       <FlatList
         style={styles.flatList}
-        data={tasks}
+        data={task}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View key={item.id} style={styles.taskItem}>
-            <Text>{item.text}</Text>
-            <TouchableOpacity>
-              <Text>🗑️</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        renderItem={renderList}
         ListEmptyComponent={() => (
-          <Text style={styles.emptyListText}>
-            Nenhuma tarefa. Adicione uma nova tarefa!
+          <Text
+            style={[
+              styles.emptyListText,
+              { color: dark ? "#aaa" : "#9e9e9e" }, //cor itens da lista
+            ]}
+          >
+            Nenhuma tarefa adicionada ainda
           </Text>
         )}
         contentContainerStyle={styles.flatListContent}
       />
-
-      <StatusBar style="auto" />
+      <StatusBar style={dark ? "light" : "dark"} />
     </View>
   );
 }
@@ -81,43 +196,33 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#e0f7fa",
   },
   topBar: {
-    backgroundColor: "#fff",
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    backgroundColor: "#f5f5f5",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBlockColor: "rgba(0,0,0,0.1)",
-    padding: 20,
+    borderBottomColor: "rgba(0,0,0, 0.1)",
   },
-  toBarTitle: {
-    color: "#00796b",
+  topBarTittle: {
     fontSize: 24,
     fontWeight: "bold",
   },
   card: {
-    backgroundColor: "#fff",
-    color: "#000",
-    shadowColor: "#000",
     margin: 20,
     borderRadius: 15,
     padding: 20,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 10,
-    shadowColor: "#000",
   },
   input: {
-    backgroundColor: "#fcfcfc",
-    color: "#333",
-    borderColor: "b0bec5",
+    borderColor: "#b0bec5",
     borderWidth: 1,
     borderRadius: 15,
     padding: 20,
@@ -125,7 +230,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   addButton: {
-    backgroundColor: "#009688",
+    backgroundColor: "#123499",
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",
@@ -136,53 +241,38 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   flatListContent: {
-    paddingBottom: 10, // espalamento no final d Lista
+    paddingBottom: 10,
   },
   taskItem: {
-    backgroundColor: "#fff",
-    color: "#333",
-    borderColor: "rgba(0,0,0,0.1)",
-    padding: 15,
+    borderColor: "rgba(0,0,0, 0.1)",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     borderRadius: 10,
+    padding: 15,
     marginVertical: 10,
     marginHorizontal: 15,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 5,
-    shadowColor: "#fff",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 10,
     borderWidth: 1,
   },
   taskTextContainer: {
-    flex: 1, //permitir que o texto ocupe o espaço possível
+    flex: 1,
     marginRight: 10,
   },
   taskText: {
-    color: "#333",
-    fontSize: 16,
-    flexWrap: "wrap", // permite que o texto quebre linha
+    fontSize: 18,
+    flexWrap: "wrap",
   },
   completedTaskItem: {
-    textDecorationLine: "line-through", // riscar o texto
+    textDecorationLine: "line-through",
     opacity: 0.6,
   },
-  deleteButton: {
-    padding: 8,
-    borderRadius: 5,
-  },
-  deleteButtonText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    // color: "#ff4444",
-  },
   emptyListText: {
-    color: "#9e9e9e",
     textAlign: "center",
-    fontSize: 16,
     marginTop: 50,
-    paddingHorizontal: 20,
+    fontSize: 16,
   },
 });
