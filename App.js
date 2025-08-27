@@ -1,43 +1,78 @@
 import { StatusBar } from "expo-status-bar";
 import {
+  Alert,
   FlatList,
+  Keyboard,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useState } from "react";
 
 export default function App() {
+  const [tasks, setTasks] = useState([]); //estado para armazenar a lista de tarefas
+  const [newTask, setNewTask] = useState(""); //estado para o texto da nova tarefa
+
+  const addTask = () => {
+    if (newTask.trim().length > 0) {
+      // corrigido: trim() antes de length
+      //garante que a tarefa não seja vazia
+      setTasks((prevTasks) => [
+        ...prevTasks,
+        { id: Date.now().toString(), text: newTask, completed: false }, //cria uma nova tarefa com id unico
+      ]);
+      setNewTask(""); //limpa o input
+      Keyboard.dismiss(); //fecha o teclado
+    } else {
+      Alert.alert("Erro", "A tarefa não pode ser vazia.");
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.container}>
-        <Text style={styles.topBarTitle}>Minhas tarefas</Text>
+      <View style={styles.topBar}>
+        <Text style={styles.toBarTitle}>Minhas Tarefas</Text>
         <TouchableOpacity>
-          <Text> 🌛</Text>
+          <Text>🌛</Text>
         </TouchableOpacity>
       </View>
-      {/* local onde o usuario insere as tarefas */}
+
+      {/* Lista de Tarefas do usuário */}
       <View style={styles.card}>
         <TextInput
           style={styles.input}
           placeholder="Adicionar nova tarefa..."
+          value={newTask}
+          onChangeText={setNewTask}
+          onSubmitEditing={addTask} //adiciona a tarefa ao pressionar enter no teclado
         />
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity style={styles.addButton} onPress={addTask}>
           <Text style={styles.buttonText}>Adicionar</Text>
         </TouchableOpacity>
       </View>
-
-      {/* lista de tarefa do usuario */}
       <FlatList
-        style={styles.FlatList}
+        style={styles.flatList}
+        data={tasks}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View key={item.id} style={styles.taskItem}>
+            <Text>{item.text}</Text>
+            <TouchableOpacity>
+              <Text>🗑️</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         ListEmptyComponent={() => (
           <Text style={styles.emptyListText}>
-            Nenhuma tarefa adicionada ainda.
+            Nenhuma tarefa. Adicione uma nova tarefa!
           </Text>
         )}
-        contentContainerStyle={styles.flatListContext}
+        contentContainerStyle={styles.flatListContent}
       />
+
       <StatusBar style="auto" />
     </View>
   );
@@ -45,29 +80,29 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: " #e0f7fa",
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: "#e0f7fa",
   },
   topBar: {
-    backgroundColor: "#fff ",
+    backgroundColor: "#fff",
+    paddingTop: 50,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    backgroundColor: "#f5f5f5",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 50, //ajuste para a barra de status
-    paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(0,0,0,0.1)",
+    borderBlockColor: "rgba(0,0,0,0.1)",
+    padding: 20,
   },
-  topBarTitle: {
-    color: " #00796b",
+  toBarTitle: {
+    color: "#00796b",
     fontSize: 24,
     fontWeight: "bold",
   },
   card: {
-    backgroundColor:"#fff",
+    backgroundColor: "#fff",
     color: "#000",
     shadowColor: "#000",
     margin: 20,
@@ -75,13 +110,14 @@ const styles = StyleSheet.create({
     padding: 20,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
+    shadowRadius: 8,
     elevation: 10,
     shadowColor: "#000",
   },
   input: {
-    backgroundColor:" #fcfcfc ",
-    color:"#333",
-    borderColor:"#b0bec5",
+    backgroundColor: "#fcfcfc",
+    color: "#333",
+    borderColor: "b0bec5",
     borderWidth: 1,
     borderRadius: 15,
     padding: 20,
@@ -89,7 +125,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   addButton: {
-    backgroundColor:" #009608",
+    backgroundColor: "#009688",
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",
@@ -99,53 +135,54 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
-  flatListContext: {
-    paddingBottom: 10, //espaçamento no final da lista
+  flatListContent: {
+    paddingBottom: 10, // espalamento no final d Lista
   },
   taskItem: {
     backgroundColor: "#fff",
     color: "#333",
     borderColor: "rgba(0,0,0,0.1)",
+    padding: 15,
+    borderRadius: 10,
+    marginVertical: 10,
+    marginHorizontal: 15,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderRadius: 10,
-    padding: 15,
-    marginVertical: 10,
-    marginHorizontal: 15,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 5,
+    shadowColor: "#fff",
     borderWidth: 1,
   },
-  taskTextContainer:{
-    flex: 1, //permite que o texto ocupe o espaço dispponivel
+  taskTextContainer: {
+    flex: 1, //permitir que o texto ocupe o espaço possível
     marginRight: 10,
   },
-  taskText:{
-    color:"#333",
-    fontSize: 18,
-    flexWrap: "wrap" //permite que o texto quebre linha
+  taskText: {
+    color: "#333",
+    fontSize: 16,
+    flexWrap: "wrap", // permite que o texto quebre linha
   },
-  completedTaskItem:{
-    textDecorationLine: "line-through",
-    opacity: 0.5,
+  completedTaskItem: {
+    textDecorationLine: "line-through", // riscar o texto
+    opacity: 0.6,
   },
-  deleteButton:{
+  deleteButton: {
     padding: 8,
     borderRadius: 5,
   },
-  deleteButtonText:{
-   color: "#fff",
-    fontSize: 22,
-    fontWeight:"bold"
+  deleteButtonText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    // color: "#ff4444",
   },
-  emptyListText:{
-    color:" #9e9e9e",
-    textAlign:"center",
-    marginTop:50,
-    fontSize:16,
+  emptyListText: {
+    color: "#9e9e9e",
+    textAlign: "center",
+    fontSize: 16,
+    marginTop: 50,
+    paddingHorizontal: 20,
   },
-
 });
